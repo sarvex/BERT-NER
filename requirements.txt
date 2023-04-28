@@ -5,7 +5,7 @@ seqeval==0.0.5
 # training progressbar
 tqdm==4.31.1
 # tokeniztion
-nltk==3.4.5
+nltk==3.6.6
 # for rest api
 Flask==1.1.1
 Flask-Cors==3.0.8
