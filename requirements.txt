@@ -7,5 +7,5 @@ tqdm==4.31.1
 # tokeniztion
 nltk==3.4.5
 # for rest api
-Flask==1.1.1
+Flask==2.3.2
 Flask-Cors==3.0.8
