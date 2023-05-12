@@ -25,8 +25,7 @@ class BertNer(BertForTokenClassification):
                         jj += 1
                         valid_output[i][jj] = sequence_output[i][j]
         sequence_output = self.dropout(valid_output)
-        logits = self.classifier(sequence_output)
-        return logits
+        return self.classifier(sequence_output)
 
 class Ner:
 
@@ -70,9 +69,7 @@ class Ner:
         ## insert "[SEP]"
         tokens.append("[SEP]")
         valid_positions.append(1)
-        segment_ids = []
-        for i in range(len(tokens)):
-            segment_ids.append(0)
+        segment_ids = [0 for _ in range(len(tokens))]
         input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
         input_mask = [1] * len(input_ids)
         while len(input_ids) < self.max_seq_length:
@@ -110,6 +107,8 @@ class Ner:
         labels = [(self.label_map[label],confidence) for label,confidence in logits]
         words = word_tokenize(text)
         assert len(labels) == len(words)
-        output = [{"word":word,"tag":label,"confidence":confidence} for word,(label,confidence) in zip(words,labels)]
-        return output
+        return [
+            {"word": word, "tag": label, "confidence": confidence}
+            for word, (label, confidence) in zip(words, labels)
+        ]
 

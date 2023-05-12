@@ -42,20 +42,15 @@ class Ner(BertForTokenClassification):
         sequence_output = self.dropout(valid_output)
         logits = self.classifier(sequence_output)
 
-        if labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
-            # Only keep active parts of the loss
-            #attention_mask_label = None
-            if attention_mask_label is not None:
-                active_loss = attention_mask_label.view(-1) == 1
-                active_logits = logits.view(-1, self.num_labels)[active_loss]
-                active_labels = labels.view(-1)[active_loss]
-                loss = loss_fct(active_logits, active_labels)
-            else:
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            return loss
-        else:
+        if labels is None:
             return logits
+        loss_fct = nn.CrossEntropyLoss(ignore_index=0)
+        if attention_mask_label is None:
+            return loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        active_loss = attention_mask_label.view(-1) == 1
+        active_logits = logits.view(-1, self.num_labels)[active_loss]
+        active_labels = labels.view(-1)[active_loss]
+        return loss_fct(active_logits, active_labels)
 
 
 class InputExample(object):
@@ -159,7 +154,7 @@ class NerProcessor(DataProcessor):
     def _create_examples(self,lines,set_type):
         examples = []
         for i,(sentence,label) in enumerate(lines):
-            guid = "%s-%s" % (set_type, i)
+            guid = f"{set_type}-{i}"
             text_a = ' '.join(sentence)
             text_b = None
             label = label
@@ -174,11 +169,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     features = []
     for (ex_index,example) in enumerate(examples):
         textlist = example.text_a.split(' ')
-        labellist = example.label
         tokens = []
         labels = []
         valid = []
         label_mask = []
+        labellist = example.label
         for i, word in enumerate(textlist):
             token = tokenizer.tokenize(word)
             tokens.extend(token)
@@ -191,18 +186,15 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 else:
                     valid.append(0)
         if len(tokens) >= max_seq_length - 1:
-            tokens = tokens[0:(max_seq_length - 2)]
-            labels = labels[0:(max_seq_length - 2)]
-            valid = valid[0:(max_seq_length - 2)]
-            label_mask = label_mask[0:(max_seq_length - 2)]
-        ntokens = []
-        segment_ids = []
-        label_ids = []
-        ntokens.append("[CLS]")
-        segment_ids.append(0)
+            tokens = tokens[:max_seq_length - 2]
+            labels = labels[:max_seq_length - 2]
+            valid = valid[:max_seq_length - 2]
+            label_mask = label_mask[:max_seq_length - 2]
+        ntokens = ["[CLS]"]
+        segment_ids = [0]
         valid.insert(0,1)
         label_mask.insert(0,1)
-        label_ids.append(label_map["[CLS]"])
+        label_ids = [label_map["[CLS]"]]
         for i, token in enumerate(tokens):
             ntokens.append(token)
             segment_ids.append(0)
@@ -235,14 +227,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         if ex_index < 5:
             logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join(
-                    [str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info(
-                    "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            # logger.info("label: %s (id = %d)" % (example.label, label_ids))
+            logger.info(f"guid: {example.guid}")
+            logger.info(f'tokens: {" ".join([str(x) for x in tokens])}')
+            logger.info(f'input_ids: {" ".join([str(x) for x in input_ids])}')
+            logger.info(f'input_mask: {" ".join([str(x) for x in input_mask])}')
+            logger.info(f'segment_ids: {" ".join([str(x) for x in segment_ids])}')
+                    # logger.info("label: %s (id = %d)" % (example.label, label_ids))
 
         features.append(
                 InputFeatures(input_ids=input_ids,
